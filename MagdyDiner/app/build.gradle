@@ -1,0 +1,173 @@
+// Import Gradle plugins that add build functionality
+// These plugins provide tasks and configurations for building Android apps
+plugins {
+    // Android Application plugin - configures how to build an Android app
+    id 'com.android.application'
+    // Kotlin Android plugin - enables Kotlin language support
+    id 'org.jetbrains.kotlin.android'
+    // Dagger Hilt plugin - enables dependency injection framework
+    id 'dagger.hilt.android.plugin'
+    // Kotlin Annotation Processing Tool plugin - processes annotations at compile time
+    id 'kotlin-kapt'
+}
+
+// Android-specific configuration
+android {
+    // Package name that uniquely identifies your app on Google Play
+    namespace 'com.example.yumyum'
+    // Target Android API version for compilation (API 33 = Android 13)
+    compileSdk 33
+
+    // Configure Kotlin compiler version
+    kotlin {
+        jvmToolchain(17)
+    }
+
+    // Default configuration applied to all builds
+    defaultConfig {
+        // Unique identifier for your app on Google Play Store
+        applicationId "com.example.yumyum"
+        // Minimum Android version this app supports (API 24 = Android 7.0)
+        minSdk 24
+        // Target Android version the app is optimized for (API 33 = Android 13)
+        targetSdk 33
+        // Version code increments with each release (used for updates)
+        versionCode 1
+        // Version name displayed to users
+        versionName "1.0"
+
+        // Test runner for running automated tests on Android devices
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Enable support library vector drawables (backward compatibility)
+        vectorDrawables {
+            useSupportLibrary true
+        }
+    }
+
+    // Build type configurations for different build variants
+    buildTypes {
+        // Release configuration (for production apps)
+        release {
+            // Disable code shrinking/obfuscation for easier debugging
+            // In production apps, set this to true for smaller app size
+            minifyEnabled false
+            // ProGuard rules file for code obfuscation
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Compiler options for Java and Kotlin code generation
+    compileOptions {
+        // Minimum Java version for source code
+        sourceCompatibility JavaVersion.VERSION_17
+        // Java version to target in compiled bytecode
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Kotlin compiler options
+    kotlinOptions {
+        // Target JVM version for Kotlin compilation
+        jvmTarget = '17'
+    }
+
+    // Enable Jetpack Compose for UI development
+    buildFeatures {
+        compose true
+    }
+
+    // Compose-specific compiler configuration
+    composeOptions {
+        // Kotlin compiler extension version compatible with Compose
+        kotlinCompilerExtensionVersion '1.4.7'
+    }
+
+    // Configure what resources to exclude from the final APK
+    packagingOptions {
+        resources {
+            // Exclude conflicting license files
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            // Exclude duplicate annotation processor files
+            exclude 'META-INF/services/javax.annotation.processing.Processor'
+        }
+    }
+}
+
+// Project dependencies - libraries used by the app
+dependencies {
+    // AndroidX and Jetpack libraries - Google's modern Android libraries
+    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
+    implementation 'androidx.activity:activity-compose:1.7.2'
+    implementation "androidx.activity:activity-ktx:1.7.2"
+
+    // Jetpack Compose UI libraries - for building the user interface
+    implementation "androidx.compose.ui:ui:1.4.3"
+    implementation 'androidx.compose.ui:ui-tooling-preview:1.4.3'
+    implementation 'androidx.compose.material3:material3:1.0.1'
+
+    // Debug-only dependencies (only included in debug builds, not in production)
+    debugImplementation "androidx.compose.ui:ui-tooling:1.4.3"
+    debugImplementation 'androidx.compose.ui:ui-test-manifest:1.4.3'
+
+    // Image loading library using Coil
+    // Coil efficiently loads images from URLs and caches them
+    implementation "io.coil-kt:coil-compose:2.4.0"
+
+    // Lottie animation library for smooth JSON-based animations
+    // Allows designers to create animations in After Effects and use them in the app
+    implementation 'com.airbnb.android:lottie-compose:6.0.1'
+    implementation 'com.airbnb.android:lottie:6.0.1'
+
+    // Jetpack Compose extensions for better integration with architecture components
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1"
+    // Navigation library for managing navigation between screens
+    implementation "androidx.navigation:navigation-compose:2.7.0-beta01"
+
+    // Kotlin Coroutines - for asynchronous programming without blocking threads
+    // Coroutines make it easy to write non-blocking code
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+
+    // ViewModel scope integration for coroutines lifecycle management
+    // Ensures coroutines are cancelled when ViewModel is destroyed
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1"
+
+    // Dagger Hilt - dependency injection framework that simplifies providing dependencies
+    // Hilt automatically generates dependency injection boilerplate code
+    implementation 'com.google.dagger:hilt-android:2.46.1'
+    // Hilt compiler - generates dependency injection code at compile time
+    kapt 'com.google.dagger:hilt-compiler:2.46.1'
+    // Hilt integration with Jetpack Navigation
+    implementation 'androidx.hilt:hilt-navigation-compose:1.1.0-alpha01'
+
+    // Retrofit - HTTP client library for making API requests
+    // Retrofit converts HTTP requests into Kotlin function calls
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    // Gson converter - automatically converts JSON responses to Kotlin objects
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    // OkHttp - HTTP client that Retrofit uses under the hood
+    implementation "com.squareup.okhttp3:okhttp:5.0.0-alpha.2"
+    // Logging interceptor - logs HTTP requests and responses for debugging
+    implementation "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.2"
+
+    // Testing dependencies - only used during testing
+    // JUnit - framework for writing unit tests
+    testImplementation 'junit:junit:4.13.2'
+    // Mockito for mocking dependencies in unit tests
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:5.1.0'
+    testImplementation 'org.mockito:mockito-core:5.3.1'
+    // Coroutines testing support for testing async code
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1'
+    // Android testing extensions
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    // Espresso - testing framework for UI testing on Android devices
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.4.3"
+
+}
+
+// Kapt configuration for proper annotation processing with Hilt
+kapt {
+    // Correct error types to prevent false errors during compilation
+    correctErrorTypes true
+}

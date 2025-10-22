@@ -1,0 +1,33 @@
+// Buildscript block defines dependencies needed during the build process itself
+// (not dependencies for the app, but dependencies for the build system)
+buildscript {
+    // Dependencies that are used by Gradle plugins and build tools
+    dependencies {
+        // Google Services plugin - required for Firebase integration
+        // Even if you don't use Firebase now, this is commonly included for future features
+        classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
+// Plugins are build enhancements that add functionality to Gradle
+// These are applied to subprojects but configured per project
+plugins {
+    // Android Application plugin - adds Android-specific build tasks and configurations
+    // This is the main plugin that allows building Android apps
+    // apply false means subprojects decide whether to apply this plugin
+    id 'com.android.application' version '8.0.2' apply false
+
+    // Android Library plugin - for building reusable Android libraries
+    // Similar to Application plugin but for creating library modules
+    id 'com.android.library' version '8.0.2' apply false
+
+    // Kotlin Android plugin - enables Kotlin language support in Android projects
+    // Without this, you can't use Kotlin in your Android code
+    id 'org.jetbrains.kotlin.android' version '1.8.21' apply false
+
+    // Dagger Hilt plugin - enables dependency injection framework
+    // Makes it easy to inject dependencies without manual setup
+    id 'com.google.dagger.hilt.android' version '2.46.1' apply false
+}
+
+
