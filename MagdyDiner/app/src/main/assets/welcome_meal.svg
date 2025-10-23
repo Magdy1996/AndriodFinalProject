@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple, colorful SVG meal illustration meant for the welcome screen.
+     Designed to be cheerful and appetizing: warm bun, bright lettuce/tomato,
+     a plate with shadow, and a steam arc to imply hot, fresh food. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <defs>
+    <radialGradient id="plateGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#f0f8ff" />
+      <stop offset="100%" stop-color="#d7e7ff" />
+    </radialGradient>
+    <linearGradient id="bunGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FFD38A"/>
+      <stop offset="100%" stop-color="#FFB35C"/>
+    </linearGradient>
+    <linearGradient id="lettuceGrad" x1="0" x2="1">
+      <stop offset="0%" stop-color="#A8E063"/>
+      <stop offset="100%" stop-color="#56AB2F"/>
+    </linearGradient>
+    <linearGradient id="tomatoGrad" x1="0" x2="1">
+      <stop offset="0%" stop-color="#FF7A7A"/>
+      <stop offset="100%" stop-color="#FF3B3B"/>
+    </linearGradient>
+    <filter id="fshadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- background subtle circle -->
+  <g transform="translate(160,160)">
+    <circle r="120" fill="url(#plateGrad)"/>
+  </g>
+
+  <!-- plate shadow -->
+  <ellipse cx="160" cy="210" rx="110" ry="28" fill="#000" opacity="0.06"/>
+
+  <!-- plate rim -->
+  <ellipse cx="160" cy="180" rx="95" ry="46" fill="#ffffff" stroke="#E8F0FF" stroke-width="2"/>
+
+  <!-- burger stack -->
+  <!-- bottom bun -->
+  <path d="M112 184 C112 196, 208 196, 208 184 L208 172 C208 172,112 172,112 172 Z" fill="url(#bunGrad)" filter="url(#fshadow)"/>
+
+  <!-- patty -->
+  <rect x="122" y="164" width="96" height="12" rx="6" fill="#6B3B2F" />
+
+  <!-- cheese -->
+  <path d="M118 156 L206 156 L206 164 L118 164 Z" fill="#FFD54F" opacity="0.95"/>
+
+  <!-- tomato slices -->
+  <g fill="url(#tomatoGrad)">
+    <ellipse cx="150" cy="148" rx="30" ry="8" />
+    <ellipse cx="182" cy="150" rx="22" ry="6" />
+  </g>
+
+  <!-- lettuce -->
+  <path d="M118 150 C128 140, 160 138, 206 150 C198 140, 160 132, 118 150 Z" fill="url(#lettuceGrad)" opacity="0.98" />
+
+  <!-- top bun -->
+  <path d="M118 132 C118 118, 206 118, 206 132 C206 140, 162 152, 162 152 C162 152,118 140,118 132 Z" fill="url(#bunGrad)" stroke="#E8923E" stroke-width="1"/>
+
+  <!-- sesame seeds -->
+  <g fill="#FFF5E1" opacity="0.95">
+    <ellipse cx="132" cy="124" rx="3" ry="1.6" transform="rotate(-18 132 124)"/>
+    <ellipse cx="154" cy="120" rx="3" ry="1.6" transform="rotate(-8 154 120)"/>
+    <ellipse cx="176" cy="124" rx="3" ry="1.6" transform="rotate(12 176 124)"/>
+  </g>
+
+  <!-- steam to imply hot, fresh -->
+  <g fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="2" stroke-linecap="round">
+    <path d="M126 110 C122 100, 134 88, 140 80" opacity="0.9"/>
+    <path d="M146 108 C142 98, 154 88, 160 80" opacity="0.75"/>
+  </g>
+
+  <!-- small fork icon on left -->
+  <g transform="translate(64,170) scale(0.9)" fill="#C8D4FF">
+    <rect x="0" y="0" width="6" height="36" rx="2"/>
+    <rect x="-2" y="0" width="10" height="6" rx="2"/>
+    <rect x="-2" y="10" width="10" height="6" rx="2"/>
+  </g>
+
+  <!-- appetizing accent: small sparkles -->
+  <g fill="#FFF59D" opacity="0.95">
+    <polygon points="250,88 254,96 262,98 256,102 258,110 250,106 242,110 244,102 238,98 246,96" opacity="0.9"/>
+    <circle cx="230" cy="72" r="4" />
+  </g>
+
+</svg>
+

@@ -4,12 +4,12 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
 import os
 
-# Presentation generator for MagdyDiner final project
-# Saves to presentation/MagdyDiner_Presentation.pptx
+# Presentation generator for MegoDiner final project
+# Saves to presentation/MegoDiner_Presentation.pptx
 
 slides = [
     {
-        "title": "MagdyDiner - Android App",
+        "title": "MegoDiner - Android App",
         "subtitle": "Final Project Presentation\nPresenter: Magdy (Magdy1996)",
         "notes": "Introduce yourself, the repo and branch (main). Mention this presentation is a short 5-8 minute overview with a short demo."
     },
@@ -163,7 +163,6 @@ for i, s in enumerate(slides):
         notes_tf.text = notes
 
 out_dir = os.path.join(os.path.dirname(__file__), '')
-out_path = os.path.join(out_dir, 'MagdyDiner_Presentation.pptx')
+out_path = os.path.join(out_dir, 'MegoDiner_Presentation.pptx')
 prs.save(out_path)
 print(f'Saved {out_path}')
-

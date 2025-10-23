@@ -112,6 +112,8 @@ dependencies {
     // Image loading library using Coil
     // Coil efficiently loads images from URLs and caches them
     implementation "io.coil-kt:coil-compose:2.4.0"
+    // Coil SVG support so we can load SVG assets in Compose
+    implementation "io.coil-kt:coil-svg:2.4.0"
 
     // Lottie animation library for smooth JSON-based animations
     // Allows designers to create animations in After Effects and use them in the app

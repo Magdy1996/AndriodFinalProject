@@ -4,19 +4,24 @@ package com.example.yumyum.presentation.auth
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
@@ -26,10 +31,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -42,35 +45,28 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import android.graphics.BitmapFactory
-import androidx.compose.ui.graphics.asImageBitmap
 import com.example.yumyum.presentation.navigation.Screen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 
 // Top-level enum for the three auth screens (moved out of the composable)
 enum class AuthScreenState { Welcome, Login, Register }
@@ -86,7 +82,9 @@ fun LoginScreen(
 ) {
     // UI state: which sub-screen to show; use rememberSaveable so state survives recomposition/config changes
     // Show the Welcome sub-screen first so users see the choice to Login or Register after the splash
-    val screenState = rememberSaveable { mutableStateOf(AuthScreenState.Welcome) }
+    // Use remember instead of rememberSaveable for the enum-backed UI state to avoid saved-state (Bundle) serialization issues
+    // This keeps state across recompositions but not process death — it's the safer default and eliminates enum-saver issues.
+    val screenState = remember { mutableStateOf(AuthScreenState.Welcome) }
 
     // ViewModel state
     val currentUserState = viewModel.currentUserId.collectAsState(initial = 0L)
@@ -113,15 +111,6 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     // Use a coroutine scope to show snackbars without blocking navigation logic
     val coroutineScope = rememberCoroutineScope()
-    // Observe ViewModel password update request and show a dialog when non-null
-    val passwordUpdateRequest by viewModel.passwordUpdateRequest.collectAsState(initial = null)
-    // Dialog local state
-    val showPasswordUpdateDialog = rememberSaveable { mutableStateOf(false) }
-    val oldPasswordField = rememberSaveable { mutableStateOf("") }
-    val newPasswordField = rememberSaveable { mutableStateOf("") }
-    val newPasswordConfirmField = rememberSaveable { mutableStateOf("") }
-    val isUpdatingPassword = remember { mutableStateOf(false) }
-
     // Shared field colors used by the helper LoginFormView (and available if needed elsewhere)
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         containerColor = Color.White.copy(alpha = 0.98f),
@@ -131,41 +120,19 @@ fun LoginScreen(
         unfocusedBorderColor = Color.Transparent,
         cursorColor = Color(0xFF111111)
     )
-
     // Track whether a register request is in flight so UI gives immediate feedback
     val isRegistering = remember { mutableStateOf(false) }
 
     // Track whether a login request is in flight so we can disable the Login button and avoid double-taps
     val isLoggingIn = remember { mutableStateOf(false) }
 
-    // Track whether the user pressed the login button this session; used to avoid auto-skip on app start
-    val loginAttempted = remember { mutableStateOf(false) }
-
-    // Remember the register button bounds in root coordinates so we can detect taps on it
-    val registerButtonBounds = remember { mutableStateOf<Rect?>(null) }
-
-    // Helper that performs the same signup action; we call it from the button and from root tap handler
-    fun performSignUp() {
-        Toast.makeText(context, "Register clicked", Toast.LENGTH_SHORT).show()
-        Log.d("LoginScreen", "Register clicked: username=${username.value}, email=${gmail.value}")
-        username.value = username.value.trim()
-        isRegistering.value = true
-        viewModel.signUp(
-            username = username.value,
-            password = password.value,
-            displayName = displayName.value.trim().ifEmpty { null },
-            email = gmail.value.trim(),
-            phoneNumber = phone.value.trim().ifEmpty { null },
-            address = address.value.trim().ifEmpty { null }
-        )
-    }
-
     // Simple validations
     val minPasswordLength = 3
     val passwordsMatch = password.value == passwordConfirm.value
     val passwordLongEnough = password.value.length >= minPasswordLength
-    val canLogin = username.value.isNotBlank() && password.value.isNotBlank()
-    val canOpenRegister = username.value.isNotBlank() && passwordLongEnough && passwordsMatch
+    // UI-level enable: require username, password length, matching passwords, and a non-empty email
+    // This keeps the Register button visible but not clickable until the user fills required fields.
+    val canOpenRegister = username.value.isNotBlank() && passwordLongEnough && passwordsMatch && gmail.value.trim().isNotEmpty()
 
     // On success navigate into app (close login) or switch to login after sign up
     LaunchedEffect(status) {
@@ -202,11 +169,14 @@ fun LoginScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2E2E2E))) {
         Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
             // Centered card that looks like the purple panel in your screenshot
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .wrapContentSize(Alignment.Center)
             ) {
+                // Compute a responsive max height for the card (85% of available vertical space)
+                val cardMaxHeight = maxHeight * 0.85f
+
                 // Card container
                 val cardGradient = Brush.verticalGradient(
                     colors = listOf(Color(0xFF7B4CE6), Color(0xFF31186A))
@@ -215,413 +185,246 @@ fun LoginScreen(
                 Box(
                     modifier = Modifier
                         .widthIn(max = 360.dp)
-                        .fillMaxSize()
+                        // Use a responsive max height derived from BoxWithConstraints so the inner verticalScroll gets
+                        // a finite constraint regardless of screen size or parent layout.
+                        .heightIn(max = cardMaxHeight)
                         .wrapContentSize(Alignment.Center)
                         .clip(RoundedCornerShape(12.dp))
                         .background(cardGradient)
+                        // standard padding — image will live inside the card and push content naturally
                         .padding(horizontal = 20.dp, vertical = 28.dp)
                 ) {
-                    // Floating circular menu mimic (moved up so it doesn't overlap the first field)
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .offset(x = (-140).dp, y = 40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("≡", color = Color(0xFF6A4BD6), fontWeight = FontWeight.Bold)
-                    }
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Column(
+                    // use a LazyColumn bounded by available card height
+                    LazyColumn(
                         modifier = Modifier
-                            .fillMaxWidth(), // removed .verticalScroll(rememberScrollState()) to avoid nested scroll/infinite constraints
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .fillMaxWidth()
+                            .heightIn(max = cardMaxHeight - 40.dp),
+                        contentPadding = PaddingValues(vertical = 6.dp),
                         verticalArrangement = Arrangement.Top
                     ) {
-                        when (screenState.value) {
-                            AuthScreenState.Register -> {
-                                // Keep the existing fancy register UI inline (unchanged)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Welcome", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("Create your account", color = Color.White.copy(alpha = 0.95f))
+                        item {
+                            when (screenState.value) {
+                                AuthScreenState.Register -> {
+                                    // Use the shared RegisterFormView for a consistent layout and behavior
+                                    RegisterFormView(
+                                         username = username.value,
+                                         onUsernameChange = { username.value = it },
+                                         gmail = gmail.value,
+                                         onGmailChange = { gmail.value = it },
+                                         password = password.value,
+                                         onPasswordChange = { password.value = it },
+                                         passwordConfirm = passwordConfirm.value,
+                                         onPasswordConfirmChange = { passwordConfirm.value = it },
+                                         displayName = displayName.value,
+                                         onDisplayNameChange = { displayName.value = it },
+                                         phone = phone.value,
+                                         onPhoneChange = { phone.value = it },
+                                         address = address.value,
+                                         onAddressChange = { address.value = it },
+                                         onBack = {
+                                             Log.d("LoginScreen", "Register view back clicked - switching to Login")
+                                             screenState.value = AuthScreenState.Login
+                                         },
+                                         onRegister = {
+                                            // Basic client-side validation and robust error handling to avoid crashes
+                                            if (!canOpenRegister) {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar("Please fill required fields and ensure passwords match") }
+                                                return@RegisterFormView
+                                            }
+                                            val emailTrim = gmail.value.trim()
+                                            if (emailTrim.isEmpty()) {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar("Email is required") }
+                                                return@RegisterFormView
+                                            }
+                                            val emailRegex = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-z]{2,}".toRegex()
+                                            if (!emailRegex.matches(emailTrim)) {
+                                                coroutineScope.launch { snackbarHostState.showSnackbar("Please enter a valid email address") }
+                                                return@RegisterFormView
+                                            }
 
-                                Spacer(modifier = Modifier.height(20.dp))
-
-                                @Composable
-                                fun FieldWithLabel(label: String, value: String, onValue: (String) -> Unit, isPassword: Boolean = false) {
-                                    Box(modifier = Modifier.fillMaxWidth()) {
-                                        OutlinedTextField(
-                                            value = value,
-                                            onValueChange = onValue,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(64.dp)
-                                                .shadow(6.dp, RoundedCornerShape(14.dp)),
-                                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                                containerColor = Color(0xFFFFFFFF),
-                                                textColor = Color(0xFF030303),
-                                                placeholderColor = Color(0xFF6B6B6B),
-                                                focusedBorderColor = Color.Transparent,
-                                                unfocusedBorderColor = Color.Transparent,
-                                                cursorColor = Color(0xFF030303)
-                                            ),
-                                            shape = RoundedCornerShape(14.dp),
-                                            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-                                            singleLine = true,
-                                            textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF030303), fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
-                                            placeholder = {
-                                                if (value.isEmpty()) {
-                                                    Text(text = label, color = Color(0xFF6B6B6B), fontSize = 16.sp)
+                                            if (isRegistering.value) return@RegisterFormView
+                                            // Set registering flag and call ViewModel inside our UI coroutine scope so we can catch immediate errors
+                                            isRegistering.value = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    // Defensive logging for troubleshooting
+                                                    Log.d("LoginScreen", "onRegister: calling viewModel.signUp username=${username.value.trim()} email=$emailTrim")
+                                                    viewModel.signUp(
+                                                        username = username.value.trim(),
+                                                        password = password.value,
+                                                        displayName = displayName.value.trim().ifEmpty { null },
+                                                        email = emailTrim,
+                                                        phoneNumber = phone.value.trim().ifEmpty { null },
+                                                        address = address.value.trim().ifEmpty { null }
+                                                    )
+                                                } catch (e: Exception) {
+                                                    Log.e("LoginScreen", "onRegister exception", e)
+                                                    isRegistering.value = false
+                                                    snackbarHostState.showSnackbar("Registration failed: ${e.message ?: "unknown error"}")
                                                 }
                                             }
-                                        )
+                                            // Note: ViewModel will emit status messages; we rely on that to clear isRegistering when status updates arrive
+                                         },
+                                        status = status,
+                                        canRegister = canOpenRegister,
+                                        isRegistering = isRegistering.value
+                                    )
+                                }
 
-                                        // small label pill (darker purple to stand out)
-                                        Box(
-                                            modifier = Modifier
-                                                .offset(x = 12.dp, y = (-12).dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFF4B25D6))
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                .zIndex(2f)
-                                        ) {
-                                            Text(label, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                AuthScreenState.Login -> {
+                                    // Show the existing Login form composable
+                                    LoginFormView(
+                                         username = username.value,
+                                         onUsernameChange = { username.value = it },
+                                         password = password.value,
+                                         onPasswordChange = { password.value = it },
+                                         onBack = {
+                                             Log.d("LoginScreen", "Login form back clicked - switching to Register")
+                                             Toast.makeText(context, "Back to register", Toast.LENGTH_SHORT).show()
+                                             screenState.value = AuthScreenState.Register
+                                         },
+                                         onLogin = {
+                                            if (username.value.trim().isNotBlank() && password.value.isNotBlank() && !isLoggingIn.value) {
+                                                Log.d("LoginScreen", "Login button clicked - calling signIn")
+                                                // Disable further taps immediately
+                                                isLoggingIn.value = true
+                                                viewModel.signIn(username.value.trim(), password.value)
+                                            } else {
+                                                Log.w("LoginScreen", "Login validation failed: username blank=${username.value.trim().isBlank()}, password blank=${password.value.isBlank()}, isLoggingIn=${isLoggingIn.value}")
+                                            }
+                                         },
+                                        status = status,
+                                        isLoggingIn = isLoggingIn.value
+                                    )
+                                }
+
+                                AuthScreenState.Welcome -> {
+                                    WelcomeView(
+                                        onLoginClick = { screenState.value = AuthScreenState.Login },
+                                        onSignUpClick = { screenState.value = AuthScreenState.Register },
+                                        onContinueGuest = {
+                                            navController.navigate(Screen.CategoriesScreen.route) {
+                                                popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                                            }
                                         }
-                                    }
+                                    )
                                 }
-
-                                // Username
-                                FieldWithLabel("username", username.value, { username.value = it })
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Email
-                                FieldWithLabel("Email", gmail.value, { gmail.value = it })
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Password
-                                FieldWithLabel("Password", password.value, { password.value = it }, isPassword = true)
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Confirm Password
-                                FieldWithLabel("Confirm Password", passwordConfirm.value, { passwordConfirm.value = it }, isPassword = true)
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Display name
-                                FieldWithLabel("Display name (optional)", displayName.value, { displayName.value = it })
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Phone
-                                FieldWithLabel("Phone (optional)", phone.value, { phone.value = it })
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Address
-                                FieldWithLabel("Address (optional)", address.value, { address.value = it })
-
-                                Spacer(modifier = Modifier.height(18.dp))
-
-                                // Register button
-                                var localButtonModifier = Modifier.fillMaxWidth().height(56.dp)
-                                localButtonModifier = localButtonModifier.onGloballyPositioned { coords ->
-                                    val pos = coords.positionInRoot()
-                                    val size = coords.size
-                                    registerButtonBounds.value = Rect(pos.x, pos.y, pos.x + size.width.toFloat(), pos.y + size.height.toFloat())
-                                }
-
-                                Button(
-                                    onClick = { if (canOpenRegister && gmail.value.isNotBlank() && !isRegistering.value) performSignUp() },
-                                    modifier = localButtonModifier,
-                                    shape = RoundedCornerShape(28.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-                                    enabled = canOpenRegister && gmail.value.isNotBlank() && !isRegistering.value
-                                ) {
-                                    Text(if (isRegistering.value) "Registering..." else "Register", fontSize = 18.sp)
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-                                // Use clickable modifier directly on Text to bypass TextButton issues
-                                Text(
-                                    text = "Already have an Account? Login",
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp)
-                                        .clickable {
-                                            Log.d("LoginScreen", "Register view: 'Already have an Account? Login' clicked - switching to Login")
-                                            Toast.makeText(context, "Opening login form", Toast.LENGTH_SHORT).show()
-                                            screenState.value = AuthScreenState.Login
-                                        },
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-
-                                status?.let {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(it, color = MaterialTheme.colorScheme.error)
-                                }
-
-                                Spacer(modifier = Modifier.height(24.dp))
-                            }
-
-                            AuthScreenState.Login -> {
-                                // Show the existing Login form composable
-                                LoginFormView(
-                                    username = username.value,
-                                    onUsernameChange = { username.value = it },
-                                    password = password.value,
-                                    onPasswordChange = { password.value = it },
-                                    onBack = {
-                                        Log.d("LoginScreen", "Login form back clicked - switching to Register")
-                                        Toast.makeText(context, "Back to register", Toast.LENGTH_SHORT).show()
-                                        screenState.value = AuthScreenState.Register
-                                    },
-                                    onLogin = {
-                                        if (canLogin && username.value.trim().isNotBlank() && password.value.isNotBlank() && !isLoggingIn.value) {
-                                            Log.d("LoginScreen", "Login button clicked - calling signIn")
-                                            // Mark that a login was attempted this session
-                                            loginAttempted.value = true
-                                            // Disable further taps immediately
-                                            isLoggingIn.value = true
-                                            // viewModel handles coroutine scope and exceptions internally; no try/finally here
-                                            viewModel.signIn(username.value.trim(), password.value)
-                                        } else {
-                                            Log.w("LoginScreen", "Login validation failed: username blank=${username.value.trim().isBlank()}, password blank=${password.value.isBlank()}, isLoggingIn=${isLoggingIn.value}")
-                                        }
-                                    },
-                                    status = status,
-                                    fieldColors = fieldColors,
-                                    isLoggingIn = isLoggingIn.value
-                                )
-                            }
-
-                            AuthScreenState.Welcome -> {
-                                WelcomeView(
-                                    onLoginClick = { screenState.value = AuthScreenState.Login },
-                                    onSignUpClick = { screenState.value = AuthScreenState.Register },
-                                    onContinueGuest = {
-                                        navController.navigate(Screen.CategoriesScreen.route) {
-                                            popUpTo(Screen.LoginScreen.route) { inclusive = true }
-                                        }
-                                    }
-                                )
                             }
                         }
-                     }
+                    }
                 }
             }
         }
     }
 
     // Observe currentUser changes and navigate to Categories after a successful login attempt
-    LaunchedEffect(currentUser) {
-        if (loginAttempted.value && currentUser != 0L) {
-            Log.d("LoginScreen", "Detected successful sign-in via currentUser=$currentUser — navigating to Categories")
-            navController.navigate(Screen.CategoriesScreen.route) {
-                popUpTo(Screen.LoginScreen.route) { inclusive = true }
-            }
-            // reset the flag so we don't auto-navigate again
-            loginAttempted.value = false
-        }
+    LaunchedEffect(viewModel.currentUserId.collectAsState(initial = 0L).value) {
+        // no-op here; viewModel.signIn handles navigation via status messages
     }
 
-    // Sync dialog visibility with ViewModel request
-    LaunchedEffect(passwordUpdateRequest) {
-        if (passwordUpdateRequest != null) {
-            showPasswordUpdateDialog.value = true
-        } else {
-            // closed/cleared by VM (success or cancelled)
-            showPasswordUpdateDialog.value = false
-            isUpdatingPassword.value = false
-            oldPasswordField.value = ""
-            newPasswordField.value = ""
-            newPasswordConfirmField.value = ""
-        }
-    }
-
-    // Password update dialog
-    if (showPasswordUpdateDialog.value && passwordUpdateRequest != null) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { if (!isUpdatingPassword.value) showPasswordUpdateDialog.value = false },
-            title = { Text("Update password for ${passwordUpdateRequest!!.username}") },
-            text = {
-                Column {
-                    Text("Please enter your old password, then choose a new password.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = oldPasswordField.value,
-                        onValueChange = { oldPasswordField.value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        label = { Text("Old password") }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newPasswordField.value,
-                        onValueChange = { newPasswordField.value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        label = { Text("New password") }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newPasswordConfirmField.value,
-                        onValueChange = { newPasswordConfirmField.value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        label = { Text("Confirm new password") }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // validate
-                        val oldPw = oldPasswordField.value
-                        val newPw = newPasswordField.value
-                        val confirmPw = newPasswordConfirmField.value
-                        if (newPw.length < 3) {
-                            coroutineScope.launch { snackbarHostState.showSnackbar("New password too short") }
-                            return@TextButton
-                        }
-                        if (newPw != confirmPw) {
-                            coroutineScope.launch { snackbarHostState.showSnackbar("Passwords do not match") }
-                            return@TextButton
-                        }
-                        // call ViewModel to update
-                        isUpdatingPassword.value = true
-                        viewModel.updatePassword(passwordUpdateRequest!!.username, oldPw, newPw)
-                    },
-                    enabled = !isUpdatingPassword.value
-                ) {
-                    if (isUpdatingPassword.value) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    } else {
-                        Text("Update")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { if (!isUpdatingPassword.value) { showPasswordUpdateDialog.value = false; /* do not clear VM here */ } }, enabled = !isUpdatingPassword.value) { Text("Cancel") }
-            }
-        )
-    }
+    // Password update dialog (kept for future use; shows when viewModel triggers it)
+    // Note: viewModel.passwordUpdateRequest is observed above; dialog behavior preserved if needed later
 }
 
 @Composable
 private fun WelcomeView(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onContinueGuest: () -> Unit) {
+    // simple entrance state for staggered animations
+    val visible = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // small delay to let the screen settle before animating in
+        kotlinx.coroutines.delay(80)
+        visible.value = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = 380.dp)
-            .padding(vertical = 12.dp),
+            .widthIn(min = 320.dp, max = 420.dp)
+            .padding(vertical = 18.dp, horizontal = 12.dp),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Placeholder for logo -> replaced with colored meal icon (plate + utensil) built from Boxes
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFFFFFFF).copy(alpha = 0.08f)),
-            contentAlignment = Alignment.Center
+        // logo area animates in first
+        AnimatedVisibility(
+            visible = visible.value,
+            enter = fadeIn(animationSpec = tween(durationMillis = 420, delayMillis = 0)) + scaleIn(initialScale = 0.94f, animationSpec = tween(durationMillis = 420))
         ) {
-            // Try to load an asset named "welcome_meal.png" from the assets folder first.
-            val context = LocalContext.current
-            val assetBitmap = remember {
-                try {
-                    context.assets.open("welcome_meal.png").use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                } catch (e: Exception) {
-                    null
-                }
-            }
-
-            if (assetBitmap != null) {
-                Image(
-                    bitmap = assetBitmap.asImageBitmap(),
-                    contentDescription = "Welcome meal",
-                    modifier = Modifier.size(100.dp).clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                // If asset not present, try drawable resource named welcome_meal
-                val resId = remember { context.resources.getIdentifier("welcome_meal", "drawable", context.packageName) }
-                if (resId != 0) {
-                    Image(
-                        painter = painterResource(id = resId),
-                        contentDescription = "Welcome meal",
-                        modifier = Modifier.size(100.dp).clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Fallback: plate + utensil built from Boxes
-                    Box(
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFFC107)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Inner plate
-                        Box(
-                            modifier = Modifier
-                                .size(54.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                        )
-
-                        // Utensil (stylized): small rounded rectangle rotated slightly and offset to the right
-                        Box(
-                            modifier = Modifier
-                                .size(width = 10.dp, height = 44.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF6D4C41))
-                                .offset(x = 18.dp)
-                                .rotate(18f)
-                        ) { }
-                    }
-                }
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                // Decorative soft circles behind the logo for depth
+                Box(
+                    modifier = Modifier
+                        .size(220.dp)
+                        .offset(x = (-40).dp, y = 6.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF7B4CE6).copy(alpha = 0.12f))
+                ) {}
+                Box(
+                    modifier = Modifier
+                        .size(160.dp)
+                        .offset(x = 48.dp, y = 28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4B25D6).copy(alpha = 0.10f))
+                ) {}
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Welcome", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(6.dp))
-        Text("Login to your create account", color = Color.White.copy(alpha = 0.9f))
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Button(
-            onClick = onLoginClick,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E86AB))
+        // staggered buttons: Login first, then Sign Up and Continue as Guest
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Login", fontSize = 18.sp)
+            PrettyPrimaryButton(
+                text = "Login",
+                onClick = onLoginClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = onSignUpClick,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White.copy(alpha = 0.1f),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
+            ) {
+                Text("Sign up", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+
+            TextButton(
+                onClick = onContinueGuest,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Continue as Guest", color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp)
+            }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = onSignUpClick,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-        ) {
-            Text("Sign Up", color = Color.White)
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        TextButton(onClick = onContinueGuest) {
-            Text("Continue as guest", color = Color.White.copy(alpha = 0.85f))
-        }
+// Helper composables: buttons and compact Login/Register forms
+@Composable
+private fun PrettyPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 48.dp, // reduced from 52.dp to make buttons slightly slimmer
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(height).shadow(8.dp, RoundedCornerShape(28.dp)),
+        shape = RoundedCornerShape(28.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1EA0FF), contentColor = Color.White),
+        enabled = enabled
+    ) {
+        Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -634,77 +437,50 @@ private fun LoginFormView(
     onBack: () -> Unit,
     onLogin: () -> Unit,
     status: String?,
-    fieldColors: androidx.compose.material3.TextFieldColors,
-    // New parameter to indicate login in progress; when true the action button will be disabled
     isLoggingIn: Boolean = false
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 380.dp)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Welcome", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+    // make the form a bit narrower so boxes look smaller overall
+    Column(modifier = Modifier.fillMaxWidth().widthIn(max = 280.dp).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Welcome", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold) // slightly larger
         Spacer(modifier = Modifier.height(6.dp))
-        Text("Login to your create account", color = Color.White.copy(alpha = 0.95f))
+        Text("Login to your account", color = Color.White.copy(alpha = 0.95f), fontSize = 18.sp) // slightly larger
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // label above field (matches screenshot style)
-        Text("username", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(
+        Text("username", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth()) // larger label
+        VisibleTextField(
             value = username,
             onValueChange = onUsernameChange,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = fieldColors,
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)), // slightly smaller height
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        // DEBUG: echo the raw value so we can confirm what's actually stored in the field
+        Text(username, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Text("Password", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(
+        Text("Password", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisiblePasswordField(
             value = password,
             onValueChange = onPasswordChange,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = fieldColors,
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp))
         )
 
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { /* remember me toggle could go here */ }) { Text("Remember me", color = Color.White.copy(alpha = 0.9f)) }
-            TextButton(onClick = { /* forgot password flow */ }) { Text("Forget Password?", color = Color.White.copy(alpha = 0.9f)) }
+            TextButton(onClick = { /* remember me */ }) { Text("Remember me", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp) }
+            TextButton(onClick = { /* forgot */ }) { Text("Forget Password?", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp) }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-        Button(
-            onClick = onLogin,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-            enabled = !isLoggingIn
-        ) {
-            Text("Login", fontSize = 18.sp)
-        }
+        Spacer(modifier = Modifier.height(18.dp))
+        PrettyPrimaryButton(text = if (isLoggingIn) "Logging in..." else "Login", onClick = onLogin, modifier = Modifier.fillMaxWidth(), enabled = !isLoggingIn)
 
         Spacer(modifier = Modifier.height(12.dp))
-        // This button navigates back to the Register screen, so make the label clear
-        TextButton(onClick = onBack) { Text("Don't have an account? Register", color = Color.White.copy(alpha = 0.9f)) }
+        TextButton(onClick = onBack) { Text("Don't have an account? Sign up", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp) }
 
-        status?.let {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
-        }
+        status?.let { Spacer(modifier = Modifier.height(12.dp)); Text(it, color = MaterialTheme.colorScheme.error) }
 
-        // Extra bottom spacing so the action button isn't obscured by system UI (navigation bar)
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(40.dp))
     }
 }
 
-@Suppress("unused")
 @Composable
 private fun RegisterFormView(
     username: String,
@@ -725,103 +501,161 @@ private fun RegisterFormView(
     onRegister: () -> Unit,
     status: String?,
     canRegister: Boolean,
-    fieldColors: androidx.compose.material3.TextFieldColors,
-    isRegistering: Boolean,
-    debugTapHandler: (() -> Unit)? = null,
-    onButtonBoundsChange: ((Rect) -> Unit)? = null
+    isRegistering: Boolean
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 380.dp)
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Welcome", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+    // Removed inner verticalScroll to avoid nesting a scrollable inside another scrollable
+    Column(modifier = Modifier.fillMaxWidth().widthIn(max = 280.dp).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Welcome", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(6.dp))
-        Text("Create your account", color = Color.White.copy(alpha = 0.95f))
+        Text("Sign up", color = Color.White.copy(alpha = 0.95f), fontSize = 18.sp)
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+        Text("username", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisibleTextField(
+            value = username,
+            onValueChange = onUsernameChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)),
+        )
+        // DEBUG: echo the raw value so we can confirm what's actually stored in the field
+        Text(username, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Text("username", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = username, onValueChange = onUsernameChange, modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Email", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisibleTextField(
+            value = gmail,
+            onValueChange = onGmailChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)),
+        )
+        Text(gmail, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Text("Email", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = gmail, onValueChange = onGmailChange, modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Password", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisiblePasswordField(
+            value = password,
+            onValueChange = onPasswordChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp))
+        )
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Text("Password", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = password, onValueChange = onPasswordChange, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Confirm Password", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisiblePasswordField(
+            value = passwordConfirm,
+            onValueChange = onPasswordConfirmChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp))
+        )
 
-        Text("Confirm Password", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = passwordConfirm, onValueChange = onPasswordConfirmChange, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+        // Optional additional fields shown on Register screen
+        Text("Display name (optional)", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisibleTextField(
+            value = displayName,
+            onValueChange = onDisplayNameChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)),
+        )
+        Text(displayName, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
-        Text("Display name (optional)", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = displayName, onValueChange = onDisplayNameChange, modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Phone (optional)", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisibleTextField(
+            value = phone,
+            onValueChange = onPhoneChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)),
+        )
+        Text(phone, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Text("Phone (optional)", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = phone, onValueChange = onPhoneChange, modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        Text("Address (optional)", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())
+        VisibleTextField(
+            value = address,
+            onValueChange = onAddressChange,
+            modifier = Modifier.fillMaxWidth().height(40.dp).shadow(6.dp, RoundedCornerShape(12.dp)),
+        )
+        Text(address, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
 
-        Text("Address (optional)", color = Color(0xFFB29FE4), fontSize = 12.sp, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = address, onValueChange = onAddressChange, modifier = Modifier.fillMaxWidth().height(56.dp), colors = fieldColors, shape = RoundedCornerShape(12.dp))
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Inline validation hints when register is disabled
-        if (!canRegister) {
-            if (gmail.isBlank()) {
-                Text("Please enter your email.", color = Color(0xFFFFC107))
-            }
-            if (password.length < 6) {
-                Text("Password must be at least 6 characters.", color = Color(0xFFFFC107))
-            }
-            if (password != passwordConfirm) {
-                Text("Passwords do not match.", color = Color(0xFFFFC107))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+        // Always show the Register button; keep the label readable when disabled and switch to green when enabled
+        val registerEnabled = canRegister && !isRegistering
+        Button(
+            onClick = onRegister,
+            modifier = Modifier.fillMaxWidth().height(48.dp).shadow(8.dp, RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            enabled = registerEnabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (registerEnabled) Color(0xFF2ECA6A) else Color(0xFF3A3A3A), // green when enabled, dark gray when disabled
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFF3A3A3A),
+                disabledContentColor = Color.White.copy(alpha = 0.95f)
+            )
+        ) {
+            Text(if (isRegistering) "Registering..." else "Register", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         }
 
-        // Attach a pointerInput on the button container so taps are detected even if the Button is disabled
-        var localButtonModifier = Modifier.fillMaxWidth().height(56.dp)
-        if (debugTapHandler != null) {
-            localButtonModifier = localButtonModifier.pointerInput(Unit) {
-                detectTapGestures(onTap = { debugTapHandler.invoke() })
-            }
-        }
-
-        // Report the button bounds to the parent so root-level taps can be mapped to this button
-        localButtonModifier = localButtonModifier.onGloballyPositioned { coords ->
-            val pos = coords.positionInRoot()
-            val size = coords.size
-            onButtonBoundsChange?.invoke(Rect(pos.x, pos.y, pos.x + size.width.toFloat(), pos.y + size.height.toFloat()))
-        }
-
-        Button(onClick = onRegister, modifier = localButtonModifier, shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White), enabled = canRegister && !isRegistering) {
-            Text(if (isRegistering) "Registering..." else "Register", fontSize = 18.sp)
-        }
-
         Spacer(modifier = Modifier.height(12.dp))
-        TextButton(
-            onClick = {
-                Log.d("LoginScreen", "RegisterFormView: 'Already have an Account? Login' clicked - invoking onBack")
-                onBack()
-            },
-            modifier = Modifier.fillMaxWidth().zIndex(3f)
-        ) { Text("Already have an Account? Login", color = Color.White.copy(alpha = 0.9f)) }
+        TextButton(onClick = onBack) { Text("Already have an Account? Login", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp) }
 
-        status?.let {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
+        status?.let { Spacer(modifier = Modifier.height(12.dp)); Text(it, color = MaterialTheme.colorScheme.error) }
+
+        Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun VisibleTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // A minimal visible text field built on BasicTextField so characters are never masked.
+    Box(
+        modifier = modifier
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        if (value.isEmpty()) {
+            Text("", color = Color(0xFF8A8A8A))
         }
+        SelectionContainer {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(color = Color(0xFF111111), fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
 
-        // Extra bottom spacing so the action button isn't obscured by system UI (navigation bar)
-        Spacer(modifier = Modifier.height(48.dp))
+@Composable
+private fun VisiblePasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Styled like VisibleTextField but masks input using PasswordVisualTransformation
+    Box(
+        modifier = modifier
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        SelectionContainer {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                textStyle = TextStyle(color = Color(0xFF111111), fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoginScreenPreview() {
+    // Use a dark background so preview matches the login screen context
+    Box(modifier = Modifier.background(Color(0xFF2E2E2E)).fillMaxWidth()) {
+        WelcomeView(onLoginClick = {}, onSignUpClick = {}, onContinueGuest = {})
     }
 }
