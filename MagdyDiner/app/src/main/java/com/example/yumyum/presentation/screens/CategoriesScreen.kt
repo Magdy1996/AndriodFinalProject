@@ -58,7 +58,7 @@ fun CategoriesScreen(
     // Main container with loading and error states
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth()) {
-            // Header row with title
+            // Header row with title and user icon
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -74,6 +74,17 @@ fun CategoriesScreen(
                         .padding(start = 10.dp)
                         .weight(1f)
                 )
+                // User icon in top-right
+                IconButton(
+                    onClick = { /* TODO: Add user menu functionality */ }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.account_icon),
+                        contentDescription = "User account",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
             // LazyColumn is like RecyclerView - it only renders visible items for performance
             // This is important for long lists as it reduces memory usage
