@@ -38,7 +38,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,7 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.yumyum.presentation.navigation.Screen
@@ -67,6 +65,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 // Top-level enum for the three auth screens (moved out of the composable)
 enum class AuthScreenState { Welcome, Login, Register }
@@ -111,15 +111,6 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     // Use a coroutine scope to show snackbars without blocking navigation logic
     val coroutineScope = rememberCoroutineScope()
-    // Shared field colors used by the helper LoginFormView (and available if needed elsewhere)
-    val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
-        containerColor = Color.White.copy(alpha = 0.98f),
-        textColor = Color(0xFF111111),
-        placeholderColor = Color(0xFF8A8A8A),
-        focusedBorderColor = Color.Transparent,
-        unfocusedBorderColor = Color.Transparent,
-        cursorColor = Color(0xFF111111)
-    )
     // Track whether a register request is in flight so UI gives immediate feedback
     val isRegistering = remember { mutableStateOf(false) }
 
@@ -367,6 +358,17 @@ private fun WelcomeView(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onC
                         .clip(CircleShape)
                         .background(Color(0xFF4B25D6).copy(alpha = 0.10f))
                 ) {}
+
+                // Load the asset named welcome.png which the app will look up in src/main/assets
+                AsyncImage(
+                    model = "file:///android_asset/welcome_meal.png",
+                    contentDescription = "Welcome image",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(width = 110.dp, height = 150.dp)
+                        .offset(y = 12.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
             }
         }
 
