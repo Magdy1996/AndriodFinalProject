@@ -1,5 +1,6 @@
 package com.example.yumyum.presentation.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,15 +14,24 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
@@ -29,8 +39,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.yumyum.presentation.orders.OrderViewModel
+import com.example.yumyum.presentation.navigation.Screen
 import com.example.yumyum.R
 import com.example.yumyum.presentation.HeadingTextComponent
 import com.example.yumyum.presentation.TextTitleMealInfo
@@ -58,7 +71,35 @@ fun MealDetailScreen(
 ) {
     // Collect the meal detail state from the view model
     val state by viewModel.state.collectAsState()
-    
+    // Hilt-injected ViewModel for orders
+    val orderViewModel: OrderViewModel = hiltViewModel()
+    // Local quantity state for ordering
+    var quantity by remember { mutableStateOf(1) }
+    val context = LocalContext.current
+
+    // Observe order errors and show a Toast so the user sees failures instead of the app crashing
+    val orderError by orderViewModel.error.collectAsState()
+    LaunchedEffect(orderError) {
+        orderError?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            orderViewModel.clearError()
+        }
+    }
+
+    // Navigate only after the order is confirmed to be placed/updated in the DB
+    LaunchedEffect(key1 = orderViewModel) {
+        orderViewModel.orderPlaced.collect { success ->
+            if (success) {
+                try {
+                    navController.navigate(Screen.CartScreen.route)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Navigation failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    android.util.Log.e("MealDetailScreen", "Navigation to OrdersScreen failed", e)
+                }
+            }
+        }
+    }
+
     // Main container with loading and error states
     Box(Modifier.fillMaxSize()) {
         // Column with vertical scrolling for content that may exceed screen height
@@ -118,6 +159,33 @@ fun MealDetailScreen(
                 // firstOrNull() safely gets the first meal or null if list is empty
                 state.meals.firstOrNull()?.let { meal ->
                     MealDetailItem(mealInfo = meal)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Quantity selector row
+                    Row(modifier = Modifier.padding(8.dp)) {
+                        IconButton(onClick = { if (quantity > 1) quantity -= 1 }) {
+                            Icon(Icons.Default.Remove, contentDescription = "decrease")
+                        }
+                        Text(
+                            text = quantity.toString(),
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(onClick = { quantity += 1 }) {
+                            Icon(Icons.Default.Add, contentDescription = "increase")
+                        }
+                    }
+                    // Order button: saves an order locally and navigates to orders screen
+                    Button(onClick = {
+                        // Validate meal identifiers before inserting to DB to avoid runtime errors
+                        if (meal.idMeal.isNotBlank() && meal.strMeal.isNotBlank()) {
+                            // Request upsert; navigation will happen when the ViewModel emits success
+                            orderViewModel.addOrUpdateOrder(meal.idMeal, meal.strMeal, quantity)
+                        } else {
+                            Toast.makeText(context, "Invalid meal data, cannot place order", Toast.LENGTH_LONG).show()
+                        }
+                    }) {
+                        Text(text = "Order")
+                    }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
 

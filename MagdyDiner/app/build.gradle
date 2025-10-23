@@ -116,12 +116,14 @@ dependencies {
     // Lottie animation library for smooth JSON-based animations
     // Allows designers to create animations in After Effects and use them in the app
     implementation 'com.airbnb.android:lottie-compose:6.0.1'
-    implementation 'com.airbnb.android:lottie:6.0.1'
 
     // Jetpack Compose extensions for better integration with architecture components
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1"
     // Navigation library for managing navigation between screens
     implementation "androidx.navigation:navigation-compose:2.7.0-beta01"
+
+    // Material extended icons (used by Orders screen)
+    implementation "androidx.compose.material:material-icons-extended:1.4.3"
 
     // Kotlin Coroutines - for asynchronous programming without blocking threads
     // Coroutines make it easy to write non-blocking code
@@ -149,6 +151,11 @@ dependencies {
     implementation "com.squareup.okhttp3:okhttp:5.0.0-alpha.2"
     // Logging interceptor - logs HTTP requests and responses for debugging
     implementation "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.2"
+
+    // Room: local database for storing orders
+    implementation "androidx.room:room-runtime:2.5.2"
+    implementation "androidx.room:room-ktx:2.5.2"
+    kapt "androidx.room:room-compiler:2.5.2"
 
     // Testing dependencies - only used during testing
     // JUnit - framework for writing unit tests

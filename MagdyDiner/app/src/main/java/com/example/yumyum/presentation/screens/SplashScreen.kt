@@ -105,8 +105,9 @@ private fun CheckUserBeforeNavigate(
     // Primary navigation trigger: when the animation has reached its end
     LaunchedEffect(key1 = splashAnimationState.isAtEnd) {
         if (splashAnimationState.isAtEnd) {
-            Log.d(TAG, "Animation reached end — navigating to Categories")
-            navController.navigate(Screen.CategoriesScreen.route) {
+            Log.d(TAG, "Animation reached end — navigating to Login (auth) screen")
+            // Navigate to the Login screen which contains the Welcome/Login/Register sub-views
+            navController.navigate(Screen.LoginScreen.route) {
                 popUpTo(navController.graph.id) {
                     inclusive = true
                 }
@@ -119,10 +120,9 @@ private fun CheckUserBeforeNavigate(
     LaunchedEffect(key1 = composition) {
         if (composition == null) {
             // wait briefly for composition to load; if still null, navigate
-            Log.d(TAG, "Composition null — will navigate after timeout")
+            Log.d(TAG, "Composition null — will navigate after timeout to Login")
             delay(1500)
-            Log.d(TAG, "Fallback navigation to Categories")
-            navController.navigate(Screen.CategoriesScreen.route) {
+            navController.navigate(Screen.LoginScreen.route) {
                 popUpTo(navController.graph.id) { inclusive = true }
             }
         }

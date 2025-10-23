@@ -22,4 +22,10 @@ sealed class Screen(val route: String) {
     object MealsScreen: Screen("meals_screen")
     // The meal detail screen shows complete information about a specific meal
     object MealDetailScreen: Screen("meal_detail_screen")
+    // The orders screen allows users to create and view orders stored locally
+    object OrdersScreen: Screen("orders_screen")
+    // The cart screen displays pending orders and allows checkout
+    object CartScreen: Screen("cart_screen")
+    // A small login/debug screen to switch current user id during development
+    object LoginScreen: Screen("login_screen")
 }

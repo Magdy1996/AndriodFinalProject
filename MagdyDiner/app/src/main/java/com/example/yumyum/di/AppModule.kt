@@ -1,10 +1,16 @@
 package com.example.yumyum.di
 
 
+import android.content.Context
+import androidx.room.Room
 import com.example.yumyum.common.Constants.BASE_URL
 import com.example.yumyum.data.remote.MealApiService
 import com.example.yumyum.data.repository.MealRepositoryImpl
+import com.example.yumyum.data.local.AppDatabase
+import com.example.yumyum.data.local.OrderDao
+import com.example.yumyum.data.repository.OrderRepositoryImpl
 import com.example.yumyum.domain.repository.MealRepository
+import com.example.yumyum.domain.repository.OrderRepository
 import com.example.yumyum.domain.use_case.ApiUseCases
 import com.example.yumyum.domain.use_case.GetCategoriesUseCase
 import com.example.yumyum.domain.use_case.GetMealUseCase
@@ -16,6 +22,11 @@ import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.util.Log
+import com.example.yumyum.data.local.UserDao
+import com.example.yumyum.auth.AuthRepository
+import com.example.yumyum.auth.LocalAuthRepository
 
 
 /**
@@ -106,5 +117,33 @@ object AppModule {
             getMealUseCase = GetMealUseCase(repository)
         )
     }
+
+    // --- Room database providers for Orders feature ---
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        Log.d("AppModule", "Creating AppDatabase 'app_db'")
+        return Room.databaseBuilder(context, AppDatabase::class.java, "app_db")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOrderDao(db: AppDatabase): OrderDao = db.orderDao()
+
+    @Provides
+    @Singleton
+    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(@ApplicationContext context: Context, userDao: UserDao): AuthRepository {
+        return LocalAuthRepository(context, userDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOrderRepository(dao: OrderDao, @ApplicationContext context: Context, authRepository: AuthRepository): OrderRepository = OrderRepositoryImpl(dao, context, authRepository)
 
 }

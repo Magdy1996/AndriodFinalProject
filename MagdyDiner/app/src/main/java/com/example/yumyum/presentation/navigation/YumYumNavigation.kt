@@ -2,40 +2,31 @@ package com.example.yumyum.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.yumyum.presentation.screens.OrdersScreen
 import com.example.yumyum.presentation.screens.AnimationSplashScreen
 import com.example.yumyum.presentation.screens.CategoriesScreen
 import com.example.yumyum.presentation.screens.MealDetailScreen
 import com.example.yumyum.presentation.screens.MealsScreen
+import com.example.yumyum.presentation.orders.CartScreen
+import com.example.yumyum.presentation.auth.LoginScreen
 
 /**
  * YumYumNavigation sets up the complete navigation graph for the entire application.
  * Navigation determines which screen is displayed and how users move between screens.
  *
- * This uses the Jetpack Navigation library with Compose, which provides:
- * - Back button functionality (automatically managed)
- * - Screen state preservation
- * - Type-safe argument passing between screens
- *
- * The navigation flow in this app is:
- * SplashScreen → CategoriesScreen → MealsScreen → MealDetailScreen
+ * For this app we show the login screen first so users must sign in/up before accessing content.
  */
 @Composable
-fun YumYumNavigation() {
-    // rememberNavController creates and remembers a NavController across recompositions
-    // NavController is the central API for managing navigation in Compose
-    // It keeps track of which screen is currently displayed and the back stack
-    val navController = rememberNavController()
-
+fun YumYumNavigation(navController: NavHostController) {
     // NavHost is the container for all composable destinations
     // It displays the current screen based on the current navigation route
     NavHost(
-        // The NavController manages navigation between composables
         navController = navController,
-        // startDestination specifies which screen to show when the app first launches
+        // Start at the splash screen so the app shows the animated intro first
         startDestination = Screen.SplashScreen.route
     ) {
         // SPLASH SCREEN ROUTE
@@ -99,6 +90,27 @@ fun YumYumNavigation() {
             navBackStackEntry.arguments?.getString("idMeal")?.let { idMeal ->
                 MealDetailScreen(navController = navController)
             }
+        }
+
+        // ORDERS SCREEN ROUTE
+        composable(
+            route = Screen.OrdersScreen.route
+        ) {
+            OrdersScreen(navController = navController)
+        }
+
+        // CART SCREEN ROUTE
+        composable(
+            route = Screen.CartScreen.route
+        ) {
+            CartScreen(navController = navController)
+        }
+
+        // LOGIN / DEBUG SCREEN ROUTE (for switching user id during development)
+        composable(
+            route = Screen.LoginScreen.route
+        ) {
+            LoginScreen(navController = navController)
         }
     }
 }
