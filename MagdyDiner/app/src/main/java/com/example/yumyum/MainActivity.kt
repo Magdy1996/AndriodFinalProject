@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -102,6 +103,11 @@ fun YumYumApp() {
                         // Switch User / Debug button
                         IconButton(onClick = { navController.navigate(Screen.LoginScreen.route) }) {
                             Icon(Icons.Default.Person, contentDescription = "Switch User")
+                        }
+
+                        // Preferences debug (settings) button — opens the DataStore debug screen
+                        IconButton(onClick = { navController.navigate(Screen.PreferencesDebugScreen.route) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Preferences Debug")
                         }
 
                         // Always display the Logout icon so it's discoverable.

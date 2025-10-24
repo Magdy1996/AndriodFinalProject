@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.example.yumyum.presentation.navigation.Screen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
+import com.example.yumyum.work.WorkScheduler
 import androidx.navigation.NavController
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -299,6 +300,10 @@ fun LoginScreen(
                                             navController.navigate(Screen.CategoriesScreen.route) {
                                                 popUpTo(Screen.LoginScreen.route) { inclusive = true }
                                             }
+                                        },
+                                        onOpenGenAi = {
+                                            // developer-only quick navigation to the GenAI demo
+                                            navController.navigate(com.example.yumyum.presentation.navigation.Screen.GenAiScreen.route)
                                         }
                                     )
                                 }
@@ -320,7 +325,12 @@ fun LoginScreen(
 }
 
 @Composable
-private fun WelcomeView(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onContinueGuest: () -> Unit) {
+private fun WelcomeView(
+    onLoginClick: () -> Unit,
+    onSignUpClick: () -> Unit,
+    onContinueGuest: () -> Unit,
+    onOpenGenAi: () -> Unit = {}
+) {
     // simple entrance state for staggered animations
     val visible = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -361,7 +371,8 @@ private fun WelcomeView(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onC
 
                 // Load the asset named welcome.png which the app will look up in src/main/assets
                 AsyncImage(
-                    model = "file:///android_asset/welcome_meal.png",
+                    // changed to welcome.png so the filename you placed in assets is used
+                    model = "file:///android_asset/welcome.png",
                     contentDescription = "Welcome image",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -405,6 +416,25 @@ private fun WelcomeView(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onC
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Continue as Guest", color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp)
+            }
+
+            // Developer-only quick link to open GenAI demo (hidden in production builds if desired)
+            TextButton(
+                onClick = onOpenGenAi,
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Dev: GenAI Demo", color = Color.White.copy(alpha = 0.65f), fontSize = 14.sp)
+            }
+
+            // Developer-only: run a one-off background sync now for testing
+            val localContext = androidx.compose.ui.platform.LocalContext.current
+            TextButton(
+                onClick = { WorkScheduler.enqueueOneOffSync(localContext) },
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Dev: Run Sync Now", color = Color.White.copy(alpha = 0.65f), fontSize = 14.sp)
             }
         }
     }

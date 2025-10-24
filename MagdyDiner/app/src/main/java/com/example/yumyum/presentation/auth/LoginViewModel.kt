@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.yumyum.data.preferences.UserPreferences
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
 
     private val _currentUserId = MutableStateFlow(0L)
@@ -110,6 +112,12 @@ class LoginViewModel @Inject constructor(
                 if (id > 0) {
                     _currentUserId.value = id
                     _statusMessage.value = "Signed in as $username (id=$id)"
+                    // persist login state in DataStore
+                    try {
+                        userPreferences.setLoggedIn(true, id.toString())
+                    } catch (e: Exception) {
+                        android.util.Log.e("LoginViewModel", "Failed to persist login state", e)
+                    }
                     // refresh display name for the signed-in user
                     refreshCurrentUserDisplayName(id)
                     // clear any pending password update requests
@@ -164,6 +172,12 @@ class LoginViewModel @Inject constructor(
             _currentUserId.value = 0L
             _currentUserDisplayName.value = null
             _statusMessage.value = "Signed out"
+            // clear persisted login state
+            try {
+                userPreferences.setLoggedIn(false, null)
+            } catch (e: Exception) {
+                android.util.Log.e("LoginViewModel", "Failed to clear login state", e)
+            }
         }
     }
 }

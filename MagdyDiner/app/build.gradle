@@ -11,6 +11,17 @@ plugins {
     id 'kotlin-kapt'
 }
 
+// Load local.properties (optional) and expose OPENAI_API_KEY to BuildConfig if provided
+import java.util.Properties
+
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(new FileInputStream(localPropsFile))
+}
+
+def OPENAI_API_KEY = localProps.getProperty("OPENAI_API_KEY", "")
+
 // Android-specific configuration
 android {
     // Package name that uniquely identifies your app on Google Play
@@ -42,6 +53,9 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+
+        // Expose OPENAI_API_KEY via BuildConfig for local/dev usage (empty string if not provided)
+        buildConfigField "String", "OPENAI_API_KEY", "\"${OPENAI_API_KEY}\""
     }
 
     // Build type configurations for different build variants
@@ -144,6 +158,10 @@ dependencies {
     // Hilt integration with Jetpack Navigation
     implementation 'androidx.hilt:hilt-navigation-compose:1.1.0-alpha01'
 
+    // Hilt integration for WorkManager (provides @HiltWorker etc.)
+    implementation 'androidx.hilt:hilt-work:1.0.0'
+    kapt 'androidx.hilt:hilt-compiler:1.0.0'
+
     // Retrofit - HTTP client library for making API requests
     // Retrofit converts HTTP requests into Kotlin function calls
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
@@ -158,6 +176,12 @@ dependencies {
     implementation "androidx.room:room-runtime:2.5.2"
     implementation "androidx.room:room-ktx:2.5.2"
     kapt "androidx.room:room-compiler:2.5.2"
+
+    // DataStore Preferences (for user preferences)
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
+
+    // WorkManager for background scheduling
+    implementation "androidx.work:work-runtime-ktx:2.8.1"
 
     // Testing dependencies - only used during testing
     // JUnit - framework for writing unit tests

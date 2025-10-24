@@ -27,6 +27,7 @@ import android.util.Log
 import com.example.yumyum.data.local.UserDao
 import com.example.yumyum.auth.AuthRepository
 import com.example.yumyum.auth.LocalAuthRepository
+import com.example.yumyum.data.preferences.UserPreferences
 
 
 /**
@@ -145,5 +146,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideOrderRepository(dao: OrderDao, @ApplicationContext context: Context, authRepository: AuthRepository): OrderRepository = OrderRepositoryImpl(dao, context, authRepository)
+
+    // Provide UserPreferences (DataStore wrapper) as a singleton so ViewModels can inject it
+    @Provides
+    @Singleton
+    fun provideUserPreferences(@ApplicationContext context: Context): UserPreferences {
+        return UserPreferences.getInstance(context)
+    }
 
 }

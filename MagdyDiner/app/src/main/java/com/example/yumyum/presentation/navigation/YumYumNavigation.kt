@@ -13,6 +13,8 @@ import com.example.yumyum.presentation.screens.MealDetailScreen
 import com.example.yumyum.presentation.screens.MealsScreen
 import com.example.yumyum.presentation.orders.CartScreen
 import com.example.yumyum.presentation.auth.LoginScreen
+import com.example.yumyum.presentation.genai.GenAiDemoScreen
+import com.example.yumyum.presentation.preferences.PreferencesDebugScreen
 
 /**
  * YumYumNavigation sets up the complete navigation graph for the entire application.
@@ -111,6 +113,18 @@ fun YumYumNavigation(navController: NavHostController) {
             route = Screen.LoginScreen.route
         ) {
             LoginScreen(navController = navController)
+        }
+
+        // GENAI DEMO SCREEN (developer/testing only)
+        composable(
+            route = Screen.GenAiScreen.route
+        ) {
+            GenAiDemoScreen()
+        }
+
+        // Preferences debug screen (development only)
+        composable(route = Screen.PreferencesDebugScreen.route) {
+            PreferencesDebugScreen()
         }
     }
 }

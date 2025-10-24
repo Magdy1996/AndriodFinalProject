@@ -28,4 +28,8 @@ sealed class Screen(val route: String) {
     object CartScreen: Screen("cart_screen")
     // A small login/debug screen to switch current user id during development
     object LoginScreen: Screen("login_screen")
+    // Simple GenAI demo screen used for testing generative model calls
+    object GenAiScreen: Screen("genai_screen")
+    // Debug preferences screen for development/testing
+    object PreferencesDebugScreen: Screen("preferences_debug")
 }

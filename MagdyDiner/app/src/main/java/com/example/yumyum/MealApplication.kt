@@ -2,6 +2,10 @@ package com.example.yumyum
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
+import com.example.yumyum.work.WorkScheduler
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import javax.inject.Inject
 
 /**
  * MealApplication extends the Android Application class to serve as the global application state holder.
@@ -13,4 +17,23 @@ import dagger.hilt.android.HiltAndroidApp
  * making it an ideal place to initialize global resources and dependency injection.
  */
 @HiltAndroidApp
-class MealApplication: Application()
+class MealApplication: Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override fun onCreate() {
+        super.onCreate()
+        // Schedule periodic background sync using WorkManager
+        WorkScheduler.schedulePeriodicSync(this, repeatIntervalHours = 6)
+        // Schedule periodic GenAI generation (writes friendly message to DataStore)
+        WorkScheduler.schedulePeriodicGenAi(this, repeatIntervalHours = 24)
+    }
+
+    // Provide WorkManager configuration so Hilt can inject Worker dependencies
+    override fun getWorkManagerConfiguration(): Configuration {
+        return Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+    }
+}
